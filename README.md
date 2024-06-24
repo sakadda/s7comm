@@ -40,6 +40,19 @@ Create your plugin.config file
         	{name= "test_udint", address= "DB1.DBD18",type = "udint"}]
 ```
 
+| Data Type | Column 2 | Column 3 |
+| --------- | -------- | -------- |
+| bool      | Cell 2   | Cell 3   |
+| byte      | Cell 5   | Cell 6   |
+| dword     | Cell 8   | Cell 9   |
+| int       | Cell 8   | Cell 9   |
+| dint      | Cell 8   | Cell 9   |
+| uint      | Cell 8   | Cell 9   |
+| udint     | Cell 8   | Cell 9   |
+| real      | Cell 8   | Cell 9   |
+| float64   | Cell 8   | Cell 9   |
+| time      | Cell 8   | Cell 9   |
+
 From here, you can already test the plugin with your config file.
 
 ```bash
