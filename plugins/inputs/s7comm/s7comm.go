@@ -10,6 +10,7 @@ import (
 	"github.com/influxdata/telegraf"
 	"github.com/influxdata/telegraf/config"
 	"github.com/influxdata/telegraf/plugins/inputs"
+	"github.com/influxdata/telegraf/plugins/processors/dedup"
 	"github.com/robinson/gos7"
 )
 
@@ -26,19 +27,23 @@ type S7Comm struct {
 	Timeout     config.Duration `toml:"connect_timeout"`
 	IdleTimeout config.Duration `toml:"request_timeout"`
 
-	Nodes 	[]NodeSettings  `toml:"nodes"`
-	Log		telegraf.Logger `toml:"-"`
+	Nodes []NodeSettings  `toml:"nodes"`
+	Log   telegraf.Logger `toml:"-"`
 
 	// internal values
 	handler *gos7.TCPClientHandler
 	client  gos7.Client
 	helper  gos7.Helper
+
+	// dedup processor
+	dedup *dedup.Dedup
 }
 
 type NodeSettings struct {
-	Name    string `toml:"name"`
-	Address string `toml:"address"`
-	Type    string `toml:"type"`
+	Name        string `toml:"name"`
+	Address     string `toml:"address"`
+	Type        string `toml:"type"`
+	EnableDedup bool   `toml:"enable_dedup" default:"false"`
 }
 
 func (s *S7Comm) SampleConfig() string {
@@ -55,7 +60,7 @@ func (s *S7Comm) Connect() error {
 		return err
 	}
 
-    // defer s.handler.Close()
+	// defer s.handler.Close()
 
 	s.client = gos7.NewClient(s.handler)
 	s.helper = gos7.Helper{}
@@ -73,7 +78,17 @@ func (s *S7Comm) Stop() error {
 
 func (s *S7Comm) Init() error {
 	err := s.Connect()
-	return err
+	if err != nil {
+		return err
+	}
+
+	s.dedup = &dedup.Dedup{
+		DedupInterval: config.Duration(10 * time.Minute),
+		FlushTime:     time.Now(),
+		Cache:         make(map[uint64]telegraf.Metric),
+	}
+
+	return nil
 }
 
 func (s *S7Comm) Gather(a telegraf.Accumulator) error {
@@ -111,6 +126,7 @@ func (s *S7Comm) Gather(a telegraf.Accumulator) error {
 	}
 
 	for fields := range results {
+		// Создание метрики для dedup
 		a.AddFields(s.MetricName, fields, nil)
 	}
 
