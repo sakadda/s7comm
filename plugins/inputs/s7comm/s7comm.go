@@ -51,7 +51,7 @@ func (s *S7Comm) SampleConfig() string {
 }
 
 func (s *S7Comm) Connect() error {
-	s.handler = gos7.NewTCPClientHandler(s.Endpoint, s.Rack, s.Slot)
+	s.handler = gos7.NewTCPClientHandlerWithConnectType(s.Endpoint, s.Rack, s.Slot)
 	s.handler.Timeout = time.Duration(s.Timeout)
 	s.handler.IdleTimeout = time.Duration(s.IdleTimeout)
 
