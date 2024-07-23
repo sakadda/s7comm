@@ -19,10 +19,11 @@ var sampleConfig string
 
 // S7Comm
 type S7Comm struct {
-	MetricName string `toml:"name"`
-	Endpoint   string `toml:"plc_ip"`
-	Rack       int    `toml:"plc_rack"`
-	Slot       int    `toml:"plc_slot"`
+	MetricName  string `toml:"name"`
+	Endpoint    string `toml:"plc_ip"`
+	Rack        int    `toml:"plc_rack"`
+	Slot        int    `toml:"plc_slot"`
+	ConnectType int    `toml:"plc_connect_type" default:"1"`
 
 	Timeout     config.Duration `toml:"connect_timeout"`
 	IdleTimeout config.Duration `toml:"request_timeout"`
@@ -51,7 +52,7 @@ func (s *S7Comm) SampleConfig() string {
 }
 
 func (s *S7Comm) Connect() error {
-	s.handler = gos7.NewTCPClientHandlerWithConnectType(s.Endpoint, s.Rack, s.Slot)
+	s.handler = gos7.NewTCPClientHandlerWithConnectType(s.Endpoint, s.Rack, s.Slot, s.ConnectType)
 	s.handler.Timeout = time.Duration(s.Timeout)
 	s.handler.IdleTimeout = time.Duration(s.IdleTimeout)
 
