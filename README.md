@@ -56,7 +56,8 @@ Create your plugin.config file
 From here, you can already test the plugin with your config file.
 
 ```bash
-s7comm -config plugin.conf
+./s7comm -config plugin.conf
+./s7comm.exe -config plugin.conf
 ```
 
 If everything is ok, you should see something like this

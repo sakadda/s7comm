@@ -23,7 +23,7 @@ type S7Comm struct {
 	Endpoint    string `toml:"plc_ip"`
 	Rack        int    `toml:"plc_rack"`
 	Slot        int    `toml:"plc_slot"`
-	ConnectType int    `toml:"plc_connect_type" default:"1"`
+	ConnectType int    `toml:"plc_connect_type" default:"3"`
 
 	Timeout     config.Duration `toml:"connect_timeout"`
 	IdleTimeout config.Duration `toml:"request_timeout"`
