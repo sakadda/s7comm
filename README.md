@@ -26,18 +26,20 @@ Create your plugin.config file
 
 ```toml @plugin.conf
 [[inputs.s7comm]]
-	name = "S7300"
-	plc_ip = "192.168.10.57"
-	plc_rack = 0
-	plc_slot = 1
-    	connect_timeout = "10s"
-    	request_timeout = "2s"
-    	nodes = [{name= "test_int", address= "DB1.DBW0", type = "int"},
-        	{name= "test_real", address= "DB1.DBD2",type = "real"},
-        	{name= "test_bool", address= "DB1.DBX10.0",type = "bool"},
-        	{name= "test_dint", address= "DB1.DBD12",type = "dint"},
-        	{name= "test_uint", address= "DB1.DBW16",type = "uint"},
-        	{name= "test_udint", address= "DB1.DBD18",type = "udint"}]
+name = "S7300"
+plc_ip = "192.168.10.57"
+plc_rack = 0
+plc_slot = 1
+connect_timeout = "10s"
+request_timeout = "2s"
+nodes = [
+  {name= "test_int", address= "DB1.DBW0", type = "int", dedup=true},
+  {name= "test_real", address= "DB1.DBD2",type = "real"},
+  {name= "test_bool", address= "DB1.DBX10.0",type = "bool"},
+  {name= "test_dint", address= "DB1.DBD12",type = "dint"},
+  {name= "test_uint", address= "DB1.DBW16",type = "uint"},
+  {name= "test_udint", address= "DB1.DBD18",type = "udint"}
+]
 ```
 
 | Data Type | Column 2 | Column 3 |
@@ -57,6 +59,9 @@ From here, you can already test the plugin with your config file.
 
 ```bash
 ./s7comm -config plugin.conf
+```
+
+```bash
 ./s7comm.exe -config plugin.conf
 ```
 
