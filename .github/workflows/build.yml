@@ -23,8 +23,8 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
 
-      - name: Install dependencies
-        run: go mod tidy
+      # - name: Install dependencies
+      #   run: go mod tidy
 
       - name: Build
         run: |
