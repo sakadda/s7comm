@@ -2,8 +2,8 @@ name: Build Project
 
 on:
   push:
-    branches:
-      - main
+    tags:
+      - "v*"
 
 jobs:
   build:
@@ -23,9 +23,6 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
 
-      # - name: Install dependencies
-      #   run: go mod tidy
-
       - name: Build
         run: |
           mkdir -p build/${{ matrix.os }}
@@ -36,3 +33,35 @@ jobs:
         with:
           name: s7comm-${{ matrix.os }}
           path: build/${{ matrix.os }}/s7comm${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+
+      - name: Create Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Asset (Linux)
+        if: matrix.os == 'ubuntu-latest' # Условие для загрузки Linux бинарника
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: build/ubuntu-latest/s7comm
+          asset_name: s7comm-linux
+          asset_content_type: application/octet-stream
+
+      - name: Upload Release Asset (Windows)
+        if: matrix.os == 'windows-latest' # Условие для загрузки Windows бинарника
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: build/windows-latest/s7comm.exe
+          asset_name: s7comm-windows.exe
+          asset_content_type: application/octet-stream
