@@ -23,10 +23,13 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
 
+      - name: Install dependencies
+        run: go mod tidy
+
       - name: Build
         run: |
           mkdir -p build/${{ matrix.os }}
-          GOOS=${{ matrix.os == 'windows-latest' && 'windows' || 'linux' }} GOARCH=amd64 go build -o build/${{ matrix.os }}/s7comm
+          GOOS=${{ matrix.os == 'windows-latest' && 'windows' || 'linux' }} GOARCH=amd64 go build -o build/${{ matrix.os }}/s7comm${{ matrix.os == 'windows-latest' && '.exe' || '' }} cmd/main.go
 
       - name: Upload artifact
         uses: actions/upload-artifact@v3
