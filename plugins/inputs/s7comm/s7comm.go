@@ -42,6 +42,7 @@ type S7Comm struct {
 
 type NodeSettings struct {
 	Name        string `toml:"name"`
+	FullName    string `toml:"full_name"`
 	Address     string `toml:"address"`
 	Type        string `toml:"type"`
 	EnableDedup bool   `toml:"dedup" default:"false"`
@@ -115,9 +116,10 @@ func (s *S7Comm) Gather(a telegraf.Accumulator) error {
 			}
 
 			results <- map[string]interface{}{
-				"name":   node.Name,
-				"fields": fields,
-				"dedup":  node.EnableDedup,
+				"name":      node.Name,
+				"full_name": node.FullName,
+				"fields":    fields,
+				"dedup":     node.EnableDedup,
 			}
 		}(node)
 	}
@@ -135,13 +137,15 @@ func (s *S7Comm) Gather(a telegraf.Accumulator) error {
 
 	for result := range results {
 		name := result["name"].(string)
+		full_name := result["full_name"].(string)
 		fields := result["fields"].(map[string]interface{})
 		enableDedup := result["dedup"].(bool)
 
 		metric := metric.New(
 			s.MetricName,
 			map[string]string{
-				"node_name": name,
+				"name":      name,
+				"full_name": full_name,
 			},
 			fields,
 			time.Now(),
