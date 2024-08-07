@@ -18,13 +18,14 @@ import (
 //go:embed sample.conf
 var sampleConfig string
 
-// S7Comm
 type S7Comm struct {
-	MetricName  string `toml:"name"`
-	Endpoint    string `toml:"plc_ip"`
-	Rack        int    `toml:"plc_rack"`
-	Slot        int    `toml:"plc_slot"`
-	ConnectType int    `toml:"plc_connect_type" default:3`
+	MetricName    string `toml:"name"`
+	Endpoint      string `toml:"plc_ip"`
+	Rack          int    `toml:"plc_rack"`
+	Slot          int    `toml:"plc_slot"`
+	ConnectType   int    `toml:"plc_connect_type" default:"3"`
+	DedupInterval int    `toml:"dedup_interval" default:"10"`
+	DedupEnable   bool   `toml:"dedup_enable" default:"false"`
 
 	Timeout     config.Duration `toml:"connect_timeout"`
 	IdleTimeout config.Duration `toml:"request_timeout"`
@@ -32,12 +33,10 @@ type S7Comm struct {
 	Nodes []NodeSettings  `toml:"nodes"`
 	Log   telegraf.Logger `toml:"-"`
 
-	// internal values
 	handler *gos7.TCPClientHandler
 	client  gos7.Client
 	helper  gos7.Helper
 
-	// dedup processor
 	dedup *dedup.Dedup
 }
 
@@ -85,7 +84,7 @@ func (s *S7Comm) Init() error {
 	}
 
 	s.dedup = &dedup.Dedup{
-		DedupInterval: config.Duration(10 * time.Minute),
+		DedupInterval: config.Duration(10 * time.Minute), //TODO use DedupInterval
 		FlushTime:     time.Now(),
 		Cache:         make(map[uint64]telegraf.Metric),
 	}
@@ -131,7 +130,6 @@ func (s *S7Comm) Gather(a telegraf.Accumulator) error {
 		s.Log.Error(err)
 	}
 
-	// Сбор метрик для дедупликации и метрик без дедупликации
 	var dedupMetrics []telegraf.Metric
 	var nonDedupMetrics []telegraf.Metric
 
@@ -140,28 +138,26 @@ func (s *S7Comm) Gather(a telegraf.Accumulator) error {
 		fields := result["fields"].(map[string]interface{})
 		enableDedup := result["dedup"].(bool)
 
-		// Создание метрики
 		metric := metric.New(
-			name,                // Имя метрики
-			map[string]string{}, // Теги (пустой словарь)
-			fields,              // Поля
-			time.Now(),          // Временная метка
+			s.MetricName,
+			map[string]string{
+				"node_name": name,
+			},
+			fields,
+			time.Now(),
 		)
 
-		// В зависимости от флага, добавляем метрику в соответствующий список
-		if enableDedup {
+		if s.DedupEnable || enableDedup {
 			dedupMetrics = append(dedupMetrics, metric)
 		} else {
 			nonDedupMetrics = append(nonDedupMetrics, metric)
 		}
 	}
 
-	// Применение дедупликации только к метрикам, где включен параметр
 	if len(dedupMetrics) > 0 {
 		dedupMetrics = s.dedup.Apply(dedupMetrics...)
 	}
 
-	// Добавление всех метрик в аккумулятор
 	for _, metric := range dedupMetrics {
 		a.AddMetric(metric)
 	}

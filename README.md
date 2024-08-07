@@ -30,6 +30,7 @@ name = "S7300"
 plc_ip = "192.168.10.57"
 plc_rack = 0
 plc_slot = 1
+dedup_enable = true
 connect_timeout = "10s"
 request_timeout = "2s"
 nodes = [
@@ -42,18 +43,18 @@ nodes = [
 ]
 ```
 
-| Data Type | Column 2 | Column 3 |
-| --------- | -------- | -------- |
-| bool      | Cell 2   | Cell 3   |
-| byte      | Cell 5   | Cell 6   |
-| dword     | Cell 8   | Cell 9   |
-| int       | Cell 8   | Cell 9   |
-| dint      | Cell 8   | Cell 9   |
-| uint      | Cell 8   | Cell 9   |
-| udint     | Cell 8   | Cell 9   |
-| real      | Cell 8   | Cell 9   |
-| float64   | Cell 8   | Cell 9   |
-| time      | Cell 8   | Cell 9   |
+| Data Type |
+| --------- |
+| bool      |
+| byte      |
+| dword     |
+| int       |
+| dint      |
+| uint      |
+| udint     |
+| real      |
+| float64   |
+| time      |
 
 From here, you can already test the plugin with your config file.
 
@@ -77,6 +78,46 @@ test_real value=403.14764404296875 1623227849849296642
 You have to specifie the data type in your config file for each node. At the moment, only those types are implemented :
 
 bool, byte, word, dword, int, dint, uint, udint, real, float64, time
+
+## Deduplicator
+
+Filter metrics whose field values are exact repetitions of the previous values.
+
+```toml @plugin.conf
+[[inputs.s7comm]]
+name = "S7300"
+plc_ip = "192.168.10.57"
+plc_rack = 0
+plc_slot = 1
+## Enable deduplicator for all nodes, by default thit parameter false
+dedup_enable = true
+connect_timeout = "10s"
+request_timeout = "2s"
+nodes = [
+  ## If global dedup_enable if false, you can enable deduplicator for specific node, by default thit parameter false
+  {name= "test_int", address= "DB1.DBW0", type = "int", dedup=true},
+  {name= "test_real", address= "DB1.DBD2",type = "real"},
+  {name= "test_bool", address= "DB1.DBX10.0",type = "bool"},
+  {name= "test_dint", address= "DB1.DBD12",type = "dint"},
+  {name= "test_uint", address= "DB1.DBW16",type = "uint"},
+  {name= "test_udint", address= "DB1.DBD18",type = "udint"}
+]
+```
+
+### Example
+
+```diff
+- cpu,cpu=cpu0 time_idle=42i,time_guest=2i
+- cpu,cpu=cpu0 time_idle=42i,time_guest=2i
+- cpu,cpu=cpu0 time_idle=42i,time_guest=2i
++ cpu,cpu=cpu0 time_idle=44i,time_guest=2i
+- cpu,cpu=cpu0 time_idle=44i,time_guest=2i
++ cpu,cpu=cpu0 time_idle=42i,time_guest=1i
+- cpu,cpu=cpu0 time_idle=42i,time_guest=2i
++ cpu,cpu=cpu0 time_idle=44i,time_guest=2i
+```
+
+For example, enabling the deduplication function for the temperature node reduces the number of records by up to x7 times.
 
 ## Telegraf configuration
 
@@ -103,7 +144,7 @@ command = ["/home/r/s7comm/s7comm", "-config", "/home/r/s7comm/CT.conf"]
   ##   "SIGHUP"  : Send a HUP signal. Not available on Windows. (not recommended)
   ##   "SIGUSR1" : Send a USR1 signal. Not available on Windows.
   ##   "SIGUSR2" : Send a USR2 signal. Not available on Windows.
-  signal = "STDIN"
+  signal = "none"
 
   ## Delay before the process is restarted after an unexpected termination
   restart_delay = "30s"
