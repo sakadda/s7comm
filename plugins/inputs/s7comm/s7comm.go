@@ -59,15 +59,19 @@ func (s *S7Comm) Connect() error {
 
 	err := s.handler.Connect()
 	if err != nil {
-		return err
-	}
+		s.Log.Errorf("Failed to connect to PLC: %s", s.Endpoint)
 
-	// defer s.handler.Close()
+		if s.handler != nil {
+			s.handler.Close()
+		}
+
+		// defer s.handler.Close()
+	}
 
 	s.client = gos7.NewClient(s.handler)
 	s.helper = gos7.Helper{}
 
-	// s.Log.Debug("Connection successfull")
+	s.Log.Debug("Connection successfull with:", s.Endpoint)
 
 	return nil
 }
@@ -97,21 +101,39 @@ func (s *S7Comm) Gather(a telegraf.Accumulator) error {
 	var wg sync.WaitGroup
 	results := make(chan map[string]interface{}, len(s.Nodes))
 	errs := make(chan error, len(s.Nodes))
+	var mu sync.Mutex
 
 	for _, node := range s.Nodes {
 		wg.Add(1)
 		go func(node NodeSettings) {
 			defer wg.Done()
 			buf := make([]byte, 8)
+
+			mu.Lock() // Захват мьютекса перед началом операции
+			defer mu.Unlock()
+
 			_, err := s.client.Read(node.Address, buf)
 			if err != nil {
-				errs <- err
+				if reconnectErr := s.Connect(); reconnectErr != nil {
+					errs <- fmt.Errorf("failed to reconnect for node %s: %v", node.Name, reconnectErr)
+
+					// Устанавливаем данные в null при неудачном переподключении
+					results <- map[string]interface{}{
+						"name":      node.Name,
+						"full_name": node.FullName,
+						"fields":    nil,
+						"dedup":     node.EnableDedup,
+					}
+					return
+				}
+				s.Gather(a)
+				// errs <- err
 				return
 			}
 
 			fields, err := s.readAndConvert(node, buf)
 			if err != nil {
-				errs <- err
+				errs <- fmt.Errorf("failed to convert data for node %s: %v", node.Name, err)
 				return
 			}
 

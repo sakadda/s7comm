@@ -1,11 +1,9 @@
 module github.com/sakadda/s7comm
 
-go 1.22.0
-
-toolchain go1.22.4
+go 1.23.0
 
 require (
-	github.com/influxdata/telegraf v1.31.2
+	github.com/influxdata/telegraf v1.31.3
 	github.com/robinson/gos7 v0.0.0-20240315073918-1f14519e4846
 )
 
@@ -15,7 +13,7 @@ require (
 	github.com/BurntSushi/toml v1.4.0 // indirect
 	github.com/alecthomas/participle v0.7.1 // indirect
 	github.com/alecthomas/units v0.0.0-20240626203959-61d1e3462e30 // indirect
-	github.com/antchfx/xmlquery v1.4.0 // indirect
+	github.com/antchfx/xmlquery v1.4.1 // indirect
 	github.com/antchfx/xpath v1.3.1 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/awnumar/memcall v0.4.0 // indirect
@@ -34,7 +32,7 @@ require (
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/cel-go v0.21.0 // indirect
-	github.com/gosnmp/gosnmp v1.37.0 // indirect
+	github.com/gosnmp/gosnmp v1.38.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0 // indirect
 	github.com/influxdata/toml v0.0.0-20190415235208-270119a8ce65 // indirect
 	github.com/influxdata/wlog v0.0.0-20160411224016-7c63b0a71ef8 // indirect
@@ -65,14 +63,14 @@ require (
 	go.step.sm/crypto v0.51.1 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/crypto v0.25.0 // indirect
-	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56 // indirect
+	golang.org/x/crypto v0.26.0 // indirect
+	golang.org/x/exp v0.0.0-20240808152545-0cdaa3abc0fa // indirect
 	golang.org/x/net v0.27.0 // indirect
-	golang.org/x/sys v0.23.0 // indirect
-	golang.org/x/text v0.16.0 // indirect
+	golang.org/x/sys v0.24.0 // indirect
+	golang.org/x/text v0.17.0 // indirect
 	google.golang.org/genproto v0.0.0-20240722135656-d784300faade // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20240805194559-2c9e96a0b5d4 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240805194559-2c9e96a0b5d4 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20240814211410-ddb44dafa142 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240814211410-ddb44dafa142 // indirect
 	google.golang.org/grpc v1.65.0 // indirect
 	google.golang.org/protobuf v1.34.2 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
