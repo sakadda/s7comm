@@ -65,13 +65,14 @@ func (s *S7Comm) Connect() error {
 			s.handler.Close()
 		}
 
-		// defer s.handler.Close()
+		defer s.handler.Close()
+		return nil
 	}
 
 	s.client = gos7.NewClient(s.handler)
 	s.helper = gos7.Helper{}
 
-	s.Log.Debug("Connection successfull with:", s.Endpoint)
+	s.Log.Debug("Connection successfull with: ", s.Endpoint)
 
 	return nil
 }
@@ -101,23 +102,26 @@ func (s *S7Comm) Gather(a telegraf.Accumulator) error {
 	var wg sync.WaitGroup
 	results := make(chan map[string]interface{}, len(s.Nodes))
 	errs := make(chan error, len(s.Nodes))
+
 	var mu sync.Mutex
 
 	for _, node := range s.Nodes {
 		wg.Add(1)
 		go func(node NodeSettings) {
 			defer wg.Done()
+
 			buf := make([]byte, 8)
 
-			mu.Lock() // Захват мьютекса перед началом операции
+			mu.Lock()
 			defer mu.Unlock()
 
 			_, err := s.client.Read(node.Address, buf)
 			if err != nil {
+				time.Sleep(5 * time.Second)
+
 				if reconnectErr := s.Connect(); reconnectErr != nil {
 					errs <- fmt.Errorf("failed to reconnect for node %s: %v", node.Name, reconnectErr)
 
-					// Устанавливаем данные в null при неудачном переподключении
 					results <- map[string]interface{}{
 						"name":      node.Name,
 						"full_name": node.FullName,
@@ -126,8 +130,8 @@ func (s *S7Comm) Gather(a telegraf.Accumulator) error {
 					}
 					return
 				}
+
 				s.Gather(a)
-				// errs <- err
 				return
 			}
 
@@ -154,26 +158,27 @@ func (s *S7Comm) Gather(a telegraf.Accumulator) error {
 		s.Log.Error(err)
 	}
 
+	s.processMetrics(a, results)
+
+	return nil
+}
+
+func (s *S7Comm) processMetrics(a telegraf.Accumulator, results chan map[string]interface{}) {
 	var dedupMetrics []telegraf.Metric
 	var nonDedupMetrics []telegraf.Metric
 
 	for result := range results {
-		name := result["name"].(string)
-		full_name := result["full_name"].(string)
-		fields := result["fields"].(map[string]interface{})
-		enableDedup := result["dedup"].(bool)
-
 		metric := metric.New(
 			s.MetricName,
 			map[string]string{
-				"name":      name,
-				"full_name": full_name,
+				"name":      result["name"].(string),
+				"full_name": result["full_name"].(string),
 			},
-			fields,
+			result["fields"].(map[string]interface{}),
 			time.Now(),
 		)
 
-		if s.DedupEnable || enableDedup {
+		if s.DedupEnable || result["dedup"].(bool) {
 			dedupMetrics = append(dedupMetrics, metric)
 		} else {
 			nonDedupMetrics = append(nonDedupMetrics, metric)
@@ -190,8 +195,6 @@ func (s *S7Comm) Gather(a telegraf.Accumulator) error {
 	for _, metric := range nonDedupMetrics {
 		a.AddMetric(metric)
 	}
-
-	return nil
 }
 
 func (s *S7Comm) readAndConvert(node NodeSettings, buf []byte) (map[string]interface{}, error) {
