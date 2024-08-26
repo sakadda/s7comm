@@ -79,9 +79,10 @@ func (s *S7Comm) Connect() error {
 }
 
 func (s *S7Comm) Stop() error {
-	err := s.handler.Close()
-
-	return err
+	if s.handler != nil {
+		return s.handler.Close()
+	}
+	return nil
 }
 
 func (s *S7Comm) Init() error {
@@ -104,7 +105,7 @@ func (s *S7Comm) Gather(a telegraf.Accumulator) error {
 	results := make(chan map[string]interface{}, len(s.Nodes))
 	errs := make(chan error, len(s.Nodes))
 
-	// var mu sync.Mutex
+	var mu sync.Mutex
 
 	for _, node := range s.Nodes {
 		wg.Add(1)
@@ -113,8 +114,8 @@ func (s *S7Comm) Gather(a telegraf.Accumulator) error {
 
 			buf := make([]byte, 8)
 
-			// mu.Lock()
-			// defer mu.Unlock()
+			mu.Lock()
+			defer mu.Unlock()
 
 			for {
 				_, err := s.client.Read(node.Address, buf)
