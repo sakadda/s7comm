@@ -160,31 +160,34 @@ func (s *S7Comm) Gather(a telegraf.Accumulator) error {
 		os.Exit(1)
 	}
 
-	var metrics []telegraf.Metric
-	for result := range results {
-		metric := metric.New(
-			s.MetricName,
-			map[string]string{
-				"name":      result["name"].(string),
-				"full_name": result["full_name"].(string),
-			},
-			result["fields"].(map[string]interface{}),
-			time.Now(),
-		)
-		metrics = append(metrics, metric)
-	}
+	// var metrics []telegraf.Metric
+	// for result := range results {
+	// 	metric := metric.New(
+	// 		s.MetricName,
+	// 		map[string]string{
+	// 			"name":      result["name"].(string),
+	// 			"full_name": result["full_name"].(string),
+	// 		},
+	// 		result["fields"].(map[string]interface{}),
+	// 		time.Now(),
+	// 	)
+	// 	metrics = append(metrics, metric)
+	// }
 
-	// s.processMetrics(a, results)
-	s.processBatch(a, metrics)
+	s.processMetrics(a, results)
+	// s.processBatch(a, metrics)
 
 	return nil
 }
 
 func (s *S7Comm) processMetrics(a telegraf.Accumulator, results chan map[string]interface{}) {
+	// Мьютекс для защиты доступа к результатам
+	var mu sync.Mutex
 	var dedupMetrics []telegraf.Metric
 	var nonDedupMetrics []telegraf.Metric
 
 	for result := range results {
+		mu.Lock()
 		metric := metric.New(
 			s.MetricName,
 			map[string]string{
@@ -194,11 +197,17 @@ func (s *S7Comm) processMetrics(a telegraf.Accumulator, results chan map[string]
 			result["fields"].(map[string]interface{}),
 			time.Now(),
 		)
+		mu.Unlock()
 
+		// Важно: определяем, в какой массив добавлять метрику, после снятия блокировки
 		if s.DedupEnable || result["dedup"].(bool) {
+			mu.Lock()
 			dedupMetrics = append(dedupMetrics, metric)
+			mu.Unlock()
 		} else {
+			mu.Lock()
 			nonDedupMetrics = append(nonDedupMetrics, metric)
+			mu.Unlock()
 		}
 	}
 
@@ -214,29 +223,29 @@ func (s *S7Comm) processMetrics(a telegraf.Accumulator, results chan map[string]
 	}
 }
 
-func (s *S7Comm) processBatch(a telegraf.Accumulator, batch []telegraf.Metric) {
-	var dedupMetrics []telegraf.Metric
-	var nonDedupMetrics []telegraf.Metric
+// func (s *S7Comm) processBatch(a telegraf.Accumulator, batch []telegraf.Metric) {
+// 	var dedupMetrics []telegraf.Metric
+// 	var nonDedupMetrics []telegraf.Metric
 
-	for _, metric := range batch {
-		if s.DedupEnable || metric.Tags()["dedup"] == "true" {
-			dedupMetrics = append(dedupMetrics, metric)
-		} else {
-			nonDedupMetrics = append(nonDedupMetrics, metric)
-		}
-	}
+// 	for _, metric := range batch {
+// 		if s.DedupEnable || metric.Tags()["dedup"] == "true" {
+// 			dedupMetrics = append(dedupMetrics, metric)
+// 		} else {
+// 			nonDedupMetrics = append(nonDedupMetrics, metric)
+// 		}
+// 	}
 
-	if len(dedupMetrics) > 0 {
-		dedupMetrics = s.dedup.Apply(dedupMetrics...)
-	}
+// 	if len(dedupMetrics) > 0 {
+// 		dedupMetrics = s.dedup.Apply(dedupMetrics...)
+// 	}
 
-	for _, metric := range dedupMetrics {
-		a.AddMetric(metric)
-	}
-	for _, metric := range nonDedupMetrics {
-		a.AddMetric(metric)
-	}
-}
+// 	for _, metric := range dedupMetrics {
+// 		a.AddMetric(metric)
+// 	}
+// 	for _, metric := range nonDedupMetrics {
+// 		a.AddMetric(metric)
+// 	}
+// }
 
 func (s *S7Comm) readAndConvert(node NodeSettings, buf []byte) (map[string]interface{}, error) {
 	fields := make(map[string]interface{}, 1)
