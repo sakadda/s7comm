@@ -105,24 +105,17 @@ func (s *S7Comm) Gather(a telegraf.Accumulator) error {
 	results := make(chan map[string]interface{}, len(s.Nodes))
 	errs := make(chan error, len(s.Nodes))
 
-	// Добавлен семафор для ограничения количества горутин
-	sem := make(chan struct{}, 10) // Ограничение до 10 горутин одновременно
-
-	// var mu sync.Mutex
+	var mu sync.Mutex
 
 	for _, node := range s.Nodes {
 		wg.Add(1)
 		go func(node NodeSettings) {
 			defer wg.Done()
 
-			// Захват семафора
-			sem <- struct{}{}
-			defer func() { <-sem }() // Освобождение семафора
-
 			buf := make([]byte, 8)
 
-			// mu.Lock()
-			// defer mu.Unlock()
+			mu.Lock()
+			defer mu.Unlock()
 
 			_, err := s.client.Read(node.Address, buf)
 			if err != nil {
