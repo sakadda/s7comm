@@ -4,9 +4,7 @@ import (
 	_ "embed"
 	"fmt"
 	"math"
-	_ "net/http/pprof"
 	"os"
-	"sync"
 	"time"
 
 	"github.com/influxdata/telegraf"
@@ -101,57 +99,32 @@ func (s *S7Comm) Init() error {
 }
 
 func (s *S7Comm) Gather(a telegraf.Accumulator) error {
-	var wg sync.WaitGroup
 	results := make(chan map[string]interface{}, len(s.Nodes))
 	errs := make(chan error, len(s.Nodes))
 
-	// var mu sync.Mutex
-
 	for _, node := range s.Nodes {
-		wg.Add(1)
-		go func(node NodeSettings) {
-			defer wg.Done()
+		buf := make([]byte, 8)
 
-			buf := make([]byte, 8)
+		_, err := s.client.Read(node.Address, buf)
+		if err != nil {
+			errs <- fmt.Errorf("failed to connect for node %s: %v", node.Name, err)
+			continue
+		}
 
-			// mu.Lock()
-			// defer mu.Unlock()
+		fields, err := s.readAndConvert(node, buf)
+		if err != nil {
+			errs <- fmt.Errorf("failed to convert data for node %s: %v", node.Name, err)
+			continue
+		}
 
-			_, err := s.client.Read(node.Address, buf)
-			if err != nil {
-				errs <- fmt.Errorf("failed to connect for node %s: %v", node.Name, err)
-				// if reconnectErr := s.Connect(); reconnectErr != nil {
-				// 	errs <- fmt.Errorf("failed to reconnect for node %s: %v", node.Name, reconnectErr)
-
-				// results <- map[string]interface{}{
-				// 	"name":      node.Name,
-				// 	"full_name": node.FullName,
-				// 	"fields":    nil,
-				// 	"dedup":     node.EnableDedup,
-				// }
-				// 	return
-				// }
-
-				// s.Gather(a)
-				return
-			}
-
-			fields, err := s.readAndConvert(node, buf)
-			if err != nil {
-				errs <- fmt.Errorf("failed to convert data for node %s: %v", node.Name, err)
-				return
-			}
-
-			results <- map[string]interface{}{
-				"name":      node.Name,
-				"full_name": node.FullName,
-				"fields":    fields,
-				"dedup":     node.EnableDedup,
-			}
-		}(node)
+		results <- map[string]interface{}{
+			"name":      node.Name,
+			"full_name": node.FullName,
+			"fields":    fields,
+			"dedup":     node.EnableDedup,
+		}
 	}
 
-	wg.Wait()
 	close(results)
 	close(errs)
 
@@ -160,7 +133,15 @@ func (s *S7Comm) Gather(a telegraf.Accumulator) error {
 		os.Exit(1)
 	}
 
-	var metrics []telegraf.Metric
+	s.processMetrics(a, results)
+
+	return nil
+}
+
+func (s *S7Comm) processMetrics(a telegraf.Accumulator, results chan map[string]interface{}) {
+	var dedupMetrics []telegraf.Metric
+	var nonDedupMetrics []telegraf.Metric
+
 	for result := range results {
 		metric := metric.New(
 			s.MetricName,
@@ -171,46 +152,8 @@ func (s *S7Comm) Gather(a telegraf.Accumulator) error {
 			result["fields"].(map[string]interface{}),
 			time.Now(),
 		)
-		metrics = append(metrics, metric)
-	}
 
-	// s.processMetrics(a, results)
-	s.processBatch(a, metrics)
-
-	return nil
-}
-
-func (s *S7Comm) processMetrics(a telegraf.Accumulator, metrics []telegraf.Metric) {
-	var dedupMetrics []telegraf.Metric
-	var nonDedupMetrics []telegraf.Metric
-	const batchSize = 100
-	var batch []telegraf.Metric
-
-	for _, metric := range metrics {
-		if s.DedupEnable || metric.Tags()["dedup"] == "true" {
-			dedupMetrics = append(dedupMetrics, metric)
-		} else {
-			nonDedupMetrics = append(nonDedupMetrics, metric)
-		}
-
-		batch = append(batch, metric)
-		if len(batch) >= batchSize {
-			s.processBatch(a, batch)
-			batch = batch[:0]
-		}
-	}
-
-	if len(batch) > 0 {
-		s.processBatch(a, batch)
-	}
-}
-
-func (s *S7Comm) processBatch(a telegraf.Accumulator, batch []telegraf.Metric) {
-	var dedupMetrics []telegraf.Metric
-	var nonDedupMetrics []telegraf.Metric
-
-	for _, metric := range batch {
-		if s.DedupEnable || metric.Tags()["dedup"] == "true" {
+		if s.DedupEnable || result["dedup"].(bool) {
 			dedupMetrics = append(dedupMetrics, metric)
 		} else {
 			nonDedupMetrics = append(nonDedupMetrics, metric)
