@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"fmt"
 	"math"
+	"os"
 	"sync"
 	"time"
 
@@ -27,9 +28,8 @@ type S7Comm struct {
 	DedupInterval config.Duration `toml:"dedup_interval" default:"10m"`
 	DedupEnable   bool            `toml:"dedup_enable" default:"false"`
 
-	ReconnectInterval config.Duration `toml:"reconnect_interval"`
-	Timeout           config.Duration `toml:"connect_timeout"`
-	IdleTimeout       config.Duration `toml:"request_timeout"`
+	Timeout     config.Duration `toml:"connect_timeout"`
+	IdleTimeout config.Duration `toml:"request_timeout"`
 
 	Nodes []NodeSettings  `toml:"nodes"`
 	Log   telegraf.Logger `toml:"-"`
@@ -79,10 +79,9 @@ func (s *S7Comm) Connect() error {
 }
 
 func (s *S7Comm) Stop() error {
-	if s.handler != nil {
-		return s.handler.Close()
-	}
-	return nil
+	err := s.handler.Close()
+
+	return err
 }
 
 func (s *S7Comm) Init() error {
@@ -105,7 +104,7 @@ func (s *S7Comm) Gather(a telegraf.Accumulator) error {
 	results := make(chan map[string]interface{}, len(s.Nodes))
 	errs := make(chan error, len(s.Nodes))
 
-	var mu sync.Mutex
+	// var mu sync.Mutex
 
 	for _, node := range s.Nodes {
 		wg.Add(1)
@@ -114,23 +113,26 @@ func (s *S7Comm) Gather(a telegraf.Accumulator) error {
 
 			buf := make([]byte, 8)
 
-			mu.Lock()
-			defer mu.Unlock()
+			// mu.Lock()
+			// defer mu.Unlock()
 
 			_, err := s.client.Read(node.Address, buf)
 			if err != nil {
-				errs <- fmt.Errorf("failed to read from node %s: %v", node.Name, err)
+				errs <- fmt.Errorf("failed to connect for node %s: %v", node.Name, err)
+				// if reconnectErr := s.Connect(); reconnectErr != nil {
+				// 	errs <- fmt.Errorf("failed to reconnect for node %s: %v", node.Name, reconnectErr)
 
-				if reconnectErr := s.Connect(); reconnectErr != nil {
-					errs <- fmt.Errorf("failed to reconnect for node %s: %v", node.Name, reconnectErr)
+				// results <- map[string]interface{}{
+				// 	"name":      node.Name,
+				// 	"full_name": node.FullName,
+				// 	"fields":    nil,
+				// 	"dedup":     node.EnableDedup,
+				// }
+				// 	return
+				// }
 
-					results <- map[string]interface{}{
-						"name":      node.Name,
-						"full_name": node.FullName,
-						"fields":    nil,
-						"dedup":     node.EnableDedup,
-					}
-				}
+				// s.Gather(a)
+				return
 			}
 
 			fields, err := s.readAndConvert(node, buf)
@@ -154,6 +156,7 @@ func (s *S7Comm) Gather(a telegraf.Accumulator) error {
 
 	for err := range errs {
 		s.Log.Error(err)
+		os.Exit(1)
 	}
 
 	s.processMetrics(a, results)
