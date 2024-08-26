@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"fmt"
 	"math"
+	_ "net/http/pprof"
 	"os"
 	"sync"
 	"time"
@@ -159,7 +160,22 @@ func (s *S7Comm) Gather(a telegraf.Accumulator) error {
 		os.Exit(1)
 	}
 
-	s.processMetrics(a, results)
+	var metrics []telegraf.Metric
+	for result := range results {
+		metric := metric.New(
+			s.MetricName,
+			map[string]string{
+				"name":      result["name"].(string),
+				"full_name": result["full_name"].(string),
+			},
+			result["fields"].(map[string]interface{}),
+			time.Now(),
+		)
+		metrics = append(metrics, metric)
+	}
+
+	// s.processMetrics(a, results)
+	s.processBatch(a, metrics)
 
 	return nil
 }
@@ -180,6 +196,30 @@ func (s *S7Comm) processMetrics(a telegraf.Accumulator, results chan map[string]
 		)
 
 		if s.DedupEnable || result["dedup"].(bool) {
+			dedupMetrics = append(dedupMetrics, metric)
+		} else {
+			nonDedupMetrics = append(nonDedupMetrics, metric)
+		}
+	}
+
+	if len(dedupMetrics) > 0 {
+		dedupMetrics = s.dedup.Apply(dedupMetrics...)
+	}
+
+	for _, metric := range dedupMetrics {
+		a.AddMetric(metric)
+	}
+	for _, metric := range nonDedupMetrics {
+		a.AddMetric(metric)
+	}
+}
+
+func (s *S7Comm) processBatch(a telegraf.Accumulator, batch []telegraf.Metric) {
+	var dedupMetrics []telegraf.Metric
+	var nonDedupMetrics []telegraf.Metric
+
+	for _, metric := range batch {
+		if s.DedupEnable || metric.Tags()["dedup"] == "true" {
 			dedupMetrics = append(dedupMetrics, metric)
 		} else {
 			nonDedupMetrics = append(nonDedupMetrics, metric)
