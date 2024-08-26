@@ -66,8 +66,8 @@ func (s *S7Comm) Connect() error {
 			s.handler.Close()
 		}
 
-		// defer s.handler.Close()
-		return nil
+		defer s.handler.Close()
+		return err
 	}
 
 	s.client = gos7.NewClient(s.handler)
