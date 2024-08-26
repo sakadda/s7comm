@@ -117,42 +117,33 @@ func (s *S7Comm) Gather(a telegraf.Accumulator) error {
 			mu.Lock()
 			defer mu.Unlock()
 
-			for {
-				_, err := s.client.Read(node.Address, buf)
-				if err != nil {
-					errs <- fmt.Errorf("failed to read from node %s: %v", node.Name, err)
-					time.Sleep(time.Duration(s.ReconnectInterval))
+			_, err := s.client.Read(node.Address, buf)
+			if err != nil {
+				errs <- fmt.Errorf("failed to read from node %s: %v", node.Name, err)
 
-					if reconnectErr := s.Connect(); reconnectErr != nil {
-						errs <- fmt.Errorf("failed to reconnect for node %s: %v", node.Name, reconnectErr)
+				if reconnectErr := s.Connect(); reconnectErr != nil {
+					errs <- fmt.Errorf("failed to reconnect for node %s: %v", node.Name, reconnectErr)
 
-						results <- map[string]interface{}{
-							"name":      node.Name,
-							"full_name": node.FullName,
-							"fields":    nil,
-							"dedup":     node.EnableDedup,
-						}
-
-						time.Sleep(time.Duration(s.ReconnectInterval))
-						continue
+					results <- map[string]interface{}{
+						"name":      node.Name,
+						"full_name": node.FullName,
+						"fields":    nil,
+						"dedup":     node.EnableDedup,
 					}
-					continue
 				}
+			}
 
-				fields, err := s.readAndConvert(node, buf)
-				if err != nil {
-					errs <- fmt.Errorf("failed to convert data for node %s: %v", node.Name, err)
-					return
-				}
-
-				results <- map[string]interface{}{
-					"name":      node.Name,
-					"full_name": node.FullName,
-					"fields":    fields,
-					"dedup":     node.EnableDedup,
-				}
-
+			fields, err := s.readAndConvert(node, buf)
+			if err != nil {
+				errs <- fmt.Errorf("failed to convert data for node %s: %v", node.Name, err)
 				return
+			}
+
+			results <- map[string]interface{}{
+				"name":      node.Name,
+				"full_name": node.FullName,
+				"fields":    fields,
+				"dedup":     node.EnableDedup,
 			}
 		}(node)
 	}
