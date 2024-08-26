@@ -174,9 +174,22 @@ func (s *S7Comm) Gather(a telegraf.Accumulator) error {
 		s.Log.Error(err)
 	}
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+	s.processMetrics(a, results)
+
+	return nil
+}
+
+func (s *S7Comm) processMetrics(a telegraf.Accumulator, results chan map[string]interface{}) {
+>>>>>>> fc2371f (wip)
 	var dedupMetrics []telegraf.Metric
 	var nonDedupMetrics []telegraf.Metric
 
+=======
+	var metrics []telegraf.Metric
+>>>>>>> e0e2a2a (wip)
 	for result := range results {
 		name := result["name"].(string)
 		full_name := result["full_name"].(string)
@@ -192,8 +205,55 @@ func (s *S7Comm) Gather(a telegraf.Accumulator) error {
 			fields,
 			time.Now(),
 		)
+<<<<<<< HEAD
 
+<<<<<<< HEAD
 		if s.DedupEnable || enableDedup {
+=======
+		if s.DedupEnable || result["dedup"].(bool) {
+=======
+		metrics = append(metrics, metric)
+	}
+
+	// s.processMetrics(a, results)
+	s.processBatch(a, metrics)
+
+	return nil
+}
+
+func (s *S7Comm) processMetrics(a telegraf.Accumulator, metrics []telegraf.Metric) {
+	var dedupMetrics []telegraf.Metric
+	var nonDedupMetrics []telegraf.Metric
+	const batchSize = 100
+	var batch []telegraf.Metric
+
+	for _, metric := range metrics {
+		if s.DedupEnable || metric.Tags()["dedup"] == "true" {
+			dedupMetrics = append(dedupMetrics, metric)
+		} else {
+			nonDedupMetrics = append(nonDedupMetrics, metric)
+		}
+
+		batch = append(batch, metric)
+		if len(batch) >= batchSize {
+			s.processBatch(a, batch)
+			batch = batch[:0]
+		}
+	}
+
+	if len(batch) > 0 {
+		s.processBatch(a, batch)
+	}
+}
+
+func (s *S7Comm) processBatch(a telegraf.Accumulator, batch []telegraf.Metric) {
+	var dedupMetrics []telegraf.Metric
+	var nonDedupMetrics []telegraf.Metric
+
+	for _, metric := range batch {
+		if s.DedupEnable || metric.Tags()["dedup"] == "true" {
+>>>>>>> e0e2a2a (wip)
+>>>>>>> fc2371f (wip)
 			dedupMetrics = append(dedupMetrics, metric)
 		} else {
 			nonDedupMetrics = append(nonDedupMetrics, metric)
