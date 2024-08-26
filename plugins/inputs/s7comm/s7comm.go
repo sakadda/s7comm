@@ -19,16 +19,17 @@ import (
 var sampleConfig string
 
 type S7Comm struct {
-	MetricName    string `toml:"name"`
-	Endpoint      string `toml:"plc_ip"`
-	Rack          int    `toml:"plc_rack"`
-	Slot          int    `toml:"plc_slot"`
-	ConnectType   int    `toml:"plc_connect_type" default:"3"`
-	DedupInterval int    `toml:"dedup_interval" default:"10"`
-	DedupEnable   bool   `toml:"dedup_enable" default:"false"`
+	MetricName    string          `toml:"name"`
+	Endpoint      string          `toml:"plc_ip"`
+	Rack          int             `toml:"plc_rack"`
+	Slot          int             `toml:"plc_slot"`
+	ConnectType   int             `toml:"plc_connect_type" default:"3"`
+	DedupInterval config.Duration `toml:"dedup_interval" default:"10m"`
+	DedupEnable   bool            `toml:"dedup_enable" default:"false"`
 
-	Timeout     config.Duration `toml:"connect_timeout"`
-	IdleTimeout config.Duration `toml:"request_timeout"`
+	ReconnectInterval config.Duration `toml:"reconnect_interval"`
+	Timeout           config.Duration `toml:"connect_timeout"`
+	IdleTimeout       config.Duration `toml:"request_timeout"`
 
 	Nodes []NodeSettings  `toml:"nodes"`
 	Log   telegraf.Logger `toml:"-"`
@@ -90,7 +91,7 @@ func (s *S7Comm) Init() error {
 	}
 
 	s.dedup = &dedup.Dedup{
-		DedupInterval: config.Duration(10 * time.Minute), //TODO use DedupInterval
+		DedupInterval: s.DedupInterval,
 		FlushTime:     time.Now(),
 		Cache:         make(map[uint64]telegraf.Metric),
 	}
@@ -115,37 +116,44 @@ func (s *S7Comm) Gather(a telegraf.Accumulator) error {
 			mu.Lock()
 			defer mu.Unlock()
 
-			_, err := s.client.Read(node.Address, buf)
-			if err != nil {
-				time.Sleep(5 * time.Second)
+			s.Log.Debug("Interval: ", s.DedupInterval)
 
-				if reconnectErr := s.Connect(); reconnectErr != nil {
-					errs <- fmt.Errorf("failed to reconnect for node %s: %v", node.Name, reconnectErr)
+			for {
+				_, err := s.client.Read(node.Address, buf)
+				if err != nil {
+					s.Log.Error(fmt.Errorf("failed to read from node %s: %v", node.Name, err))
+					time.Sleep(time.Duration(s.ReconnectInterval))
 
-					results <- map[string]interface{}{
-						"name":      node.Name,
-						"full_name": node.FullName,
-						"fields":    nil,
-						"dedup":     node.EnableDedup,
+					if reconnectErr := s.Connect(); reconnectErr != nil {
+						s.Log.Error(fmt.Errorf("failed to reconnect for node %s: %v", node.Name, reconnectErr))
+
+						results <- map[string]interface{}{
+							"name":      node.Name,
+							"full_name": node.FullName,
+							"fields":    nil,
+							"dedup":     node.EnableDedup,
+						}
+
+						time.Sleep(time.Duration(s.ReconnectInterval))
+						continue
 					}
+					continue
+				}
+
+				fields, err := s.readAndConvert(node, buf)
+				if err != nil {
+					errs <- fmt.Errorf("failed to convert data for node %s: %v", node.Name, err)
 					return
 				}
 
-				s.Gather(a)
-				return
-			}
+				results <- map[string]interface{}{
+					"name":      node.Name,
+					"full_name": node.FullName,
+					"fields":    fields,
+					"dedup":     node.EnableDedup,
+				}
 
-			fields, err := s.readAndConvert(node, buf)
-			if err != nil {
-				errs <- fmt.Errorf("failed to convert data for node %s: %v", node.Name, err)
 				return
-			}
-
-			results <- map[string]interface{}{
-				"name":      node.Name,
-				"full_name": node.FullName,
-				"fields":    fields,
-				"dedup":     node.EnableDedup,
 			}
 		}(node)
 	}
