@@ -103,9 +103,51 @@ func (s *S7Comm) Gather(a telegraf.Accumulator) error {
 		go func(node NodeSettings) {
 			defer wg.Done()
 			buf := make([]byte, 8)
+<<<<<<< HEAD
 			_, err := s.client.Read(node.Address, buf)
 			if err != nil {
 				errs <- err
+=======
+
+			mu.Lock()
+			defer mu.Unlock()
+
+			for {
+				_, err := s.client.Read(node.Address, buf)
+				if err != nil {
+					s.Log.Error(fmt.Errorf("failed to read from node %s: %v", node.Name, err))
+					time.Sleep(time.Duration(s.ReconnectInterval))
+
+					if reconnectErr := s.Connect(); reconnectErr != nil {
+						s.Log.Error(fmt.Errorf("failed to reconnect for node %s: %v", node.Name, reconnectErr))
+
+						results <- map[string]interface{}{
+							"name":      node.Name,
+							"full_name": node.FullName,
+							"fields":    nil,
+							"dedup":     node.EnableDedup,
+						}
+
+						time.Sleep(time.Duration(s.ReconnectInterval))
+						continue
+					}
+					continue
+				}
+
+				fields, err := s.readAndConvert(node, buf)
+				if err != nil {
+					errs <- fmt.Errorf("failed to convert data for node %s: %v", node.Name, err)
+					return
+				}
+
+				results <- map[string]interface{}{
+					"name":      node.Name,
+					"full_name": node.FullName,
+					"fields":    fields,
+					"dedup":     node.EnableDedup,
+				}
+
+>>>>>>> 020eb29 (clear)
 				return
 			}
 
