@@ -1,6 +1,7 @@
 package s7comm
 
 import (
+	"context"
 	_ "embed"
 	"fmt"
 	"math"
@@ -107,6 +108,10 @@ func (s *S7Comm) Gather(a telegraf.Accumulator) error {
 
 	var mu sync.Mutex
 
+	// Добавлен контекст для управления временем выполнения
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(s.Timeout))
+	defer cancel()
+
 	for _, node := range s.Nodes {
 		wg.Add(1)
 		go func(node NodeSettings) {
@@ -117,33 +122,39 @@ func (s *S7Comm) Gather(a telegraf.Accumulator) error {
 			mu.Lock()
 			defer mu.Unlock()
 
-			_, err := s.client.Read(node.Address, buf)
-			if err != nil {
-				errs <- fmt.Errorf("failed to read from node %s: %v", node.Name, err)
+			select {
+			case <-ctx.Done():
+				errs <- fmt.Errorf("timeout reached for node %s", node.Name)
+				return
+			default:
+				_, err := s.client.Read(node.Address, buf)
+				if err != nil {
+					errs <- fmt.Errorf("failed to read from node %s: %v", node.Name, err)
 
-				if reconnectErr := s.Connect(); reconnectErr != nil {
-					errs <- fmt.Errorf("failed to reconnect for node %s: %v", node.Name, reconnectErr)
+					if reconnectErr := s.Connect(); reconnectErr != nil {
+						errs <- fmt.Errorf("failed to reconnect for node %s: %v", node.Name, reconnectErr)
 
-					results <- map[string]interface{}{
-						"name":      node.Name,
-						"full_name": node.FullName,
-						"fields":    nil,
-						"dedup":     node.EnableDedup,
+						results <- map[string]interface{}{
+							"name":      node.Name,
+							"full_name": node.FullName,
+							"fields":    nil,
+							"dedup":     node.EnableDedup,
+						}
 					}
 				}
-			}
 
-			fields, err := s.readAndConvert(node, buf)
-			if err != nil {
-				errs <- fmt.Errorf("failed to convert data for node %s: %v", node.Name, err)
-				return
-			}
+				fields, err := s.readAndConvert(node, buf)
+				if err != nil {
+					errs <- fmt.Errorf("failed to convert data for node %s: %v", node.Name, err)
+					return
+				}
 
-			results <- map[string]interface{}{
-				"name":      node.Name,
-				"full_name": node.FullName,
-				"fields":    fields,
-				"dedup":     node.EnableDedup,
+				results <- map[string]interface{}{
+					"name":      node.Name,
+					"full_name": node.FullName,
+					"fields":    fields,
+					"dedup":     node.EnableDedup,
+				}
 			}
 		}(node)
 	}
