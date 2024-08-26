@@ -116,8 +116,6 @@ func (s *S7Comm) Gather(a telegraf.Accumulator) error {
 			mu.Lock()
 			defer mu.Unlock()
 
-			s.Log.Debug("Interval: ", s.DedupInterval)
-
 			for {
 				_, err := s.client.Read(node.Address, buf)
 				if err != nil {
