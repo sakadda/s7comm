@@ -66,7 +66,7 @@ func (s *S7Comm) Connect() error {
 			s.handler.Close()
 		}
 
-		defer s.handler.Close()
+		// defer s.handler.Close()
 		return nil
 	}
 
@@ -104,7 +104,7 @@ func (s *S7Comm) Gather(a telegraf.Accumulator) error {
 	results := make(chan map[string]interface{}, len(s.Nodes))
 	errs := make(chan error, len(s.Nodes))
 
-	var mu sync.Mutex
+	// var mu sync.Mutex
 
 	for _, node := range s.Nodes {
 		wg.Add(1)
@@ -113,17 +113,17 @@ func (s *S7Comm) Gather(a telegraf.Accumulator) error {
 
 			buf := make([]byte, 8)
 
-			mu.Lock()
-			defer mu.Unlock()
+			// mu.Lock()
+			// defer mu.Unlock()
 
 			for {
 				_, err := s.client.Read(node.Address, buf)
 				if err != nil {
-					s.Log.Error(fmt.Errorf("failed to read from node %s: %v", node.Name, err))
+					errs <- fmt.Errorf("failed to read from node %s: %v", node.Name, err)
 					time.Sleep(time.Duration(s.ReconnectInterval))
 
 					if reconnectErr := s.Connect(); reconnectErr != nil {
-						s.Log.Error(fmt.Errorf("failed to reconnect for node %s: %v", node.Name, reconnectErr))
+						errs <- fmt.Errorf("failed to reconnect for node %s: %v", node.Name, reconnectErr)
 
 						results <- map[string]interface{}{
 							"name":      node.Name,
