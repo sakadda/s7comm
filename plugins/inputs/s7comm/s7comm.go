@@ -208,17 +208,14 @@ func (s *S7Comm) readAndConvert(node NodeSettings, buf []byte) (map[string]inter
 		var res uint32
 		s.helper.GetValueAt(buf, 0, &res)
 		fields[node.Name] = res
-	case "real":
+	case "float32":
 		var res float32
 		s.helper.GetValueAt(buf, 0, &res)
-		if math.IsNaN(float64(res)) {
-			res = 0
-		}
-		fields[node.Name] = res
+		fields[node.Name] = math.Round(float64(res*100)) / 100
 	case "float64":
 		var res float64
 		s.helper.GetValueAt(buf, 0, &res)
-		fields[node.Name] = res
+		fields[node.Name] = math.Round(res*100) / 100
 	case "time":
 		var res uint32
 		s.helper.GetValueAt(buf, 0, &res)
