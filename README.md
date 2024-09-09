@@ -35,7 +35,7 @@ connect_timeout = "10s"
 request_timeout = "2s"
 nodes = [
   {name= "test_int", address= "DB1.DBW0", type = "int", dedup=true},
-  {name= "test_real", address= "DB1.DBD2",type = "real"},
+  {name= "test_float32", address= "DB1.DBD2",type = "float32"},
   {name= "test_bool", address= "DB1.DBX10.0",type = "bool"},
   {name= "test_dint", address= "DB1.DBD12",type = "dint"},
   {name= "test_uint", address= "DB1.DBW16",type = "uint"},
@@ -52,7 +52,7 @@ nodes = [
 | dint      |
 | uint      |
 | udint     |
-| real      |
+| float32   |
 | float64   |
 | time      |
 
@@ -70,14 +70,14 @@ If everything is ok, you should see something like this
 
 ```bash
 test_int value=8056i 1623227848846884706
-test_real value=403.14764404296875 1623227849849296642
+test_float32 value=403.14 1623227849849296642
 ```
 
 ## Datatypes
 
 You have to specifie the data type in your config file for each node. At the moment, only those types are implemented :
 
-bool, byte, word, dword, int, dint, uint, udint, real, float64, time
+bool, byte, word, dword, int, dint, uint, udint, float32, float64, time
 
 ## Deduplicator
 
@@ -96,7 +96,7 @@ request_timeout = "2s"
 nodes = [
   ## If global dedup_enable if false, you can enable deduplicator for specific node, by default thit parameter false
   {name= "test_int", address= "DB1.DBW0", type = "int", dedup=true},
-  {name= "test_real", address= "DB1.DBD2",type = "real"},
+  {name= "test_float32", address= "DB1.DBD2",type = "float32"},
   {name= "test_bool", address= "DB1.DBX10.0",type = "bool"},
   {name= "test_dint", address= "DB1.DBD12",type = "dint"},
   {name= "test_uint", address= "DB1.DBW16",type = "uint"},
