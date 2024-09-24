@@ -62,7 +62,7 @@ require (
 	github.com/tinylib/msgp v1.2.0 // indirect
 	github.com/vjeantet/grok v1.0.1 // indirect
 	github.com/wavefronthq/wavefront-sdk-go v0.15.0 // indirect
-	go.step.sm/crypto v0.52.0 // indirect
+	go.step.sm/crypto v0.51.2 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.27.0 // indirect
