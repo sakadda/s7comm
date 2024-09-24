@@ -34,12 +34,12 @@ dedup_enable = true
 connect_timeout = "10s"
 request_timeout = "2s"
 nodes = [
-  {name= "test_int", address= "DB1.DBW0", type = "int", dedup=true},
-  {name= "test_float32", address= "DB1.DBD2",type = "float32"},
-  {name= "test_bool", address= "DB1.DBX10.0",type = "bool"},
-  {name= "test_dint", address= "DB1.DBD12",type = "dint"},
-  {name= "test_uint", address= "DB1.DBW16",type = "uint"},
-  {name= "test_udint", address= "DB1.DBD18",type = "udint"}
+  {name="test_int", full_name="", address="DB1.DBW0", type="int", dedup=true},
+  {name="test_float32", full_name="Loan name for float value", address="DB1.DBD2", type="float32"},
+  {name="test_bool", address="DB1.DBX10.0", type="bool"},
+  {name="test_dint", address="DB1.DBD12", type="dint"},
+  {name="test_uint", address="DB1.DBW16", type="uint"},
+  {name="test_udint", address="DB1.DBD18", type="udint"}
 ]
 ```
 
